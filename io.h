@@ -32,7 +32,7 @@
 #define IO_H_
 
 #define CPU_USE 0
-#define PWMOUT 20
+#define PWMOUT 22      // AUDIO OUT was 20
 
 // analog inputs for voltage control - range approx 0-5v
 // 
@@ -44,24 +44,24 @@
 
 
 // button inputs
-#define BUTTON0  4 // key1 input on schematic
-#define BUTTON1	5
-#define BUTTON2	6
-#define BUTTON3	7
-#define BUTTON4   8
-#define BUTTON5	9
-#define BUTTON6	10
-#define BUTTON7 11  // for the Pico board
-#define SHIFTBUTTON 24 // USR button on VCC-GND boards
+#define BUTTON0  0 // key1 input on schematic  was 4
+#define BUTTON1	2  // was 5
+#define BUTTON2	4  // was 6
+#define BUTTON3	6  // was 7
+#define BUTTON4   8  // was 8
+#define BUTTON5	10  // was 9
+#define BUTTON6	12  // was 10
+#define BUTTON7 14  // for the Pico board   was 11
+#define SHIFTBUTTON 18 // additional button  was 24 (USR)
 
-#define LED0 12 // LED1 output on schematic
-#define LED1 13
-#define LED2 14
-#define LED3 15
-#define LED4 16
-#define LED5 17
-#define LED6 18
-#define LED7 19
+#define LED0 1 // LED1 output on schematic was 12
+#define LED1 3  // was 13
+#define LED2 5  // was 14
+#define LED3 7  // was 15
+#define LED4 9  // was 16
+#define LED5 11  // was 17
+#define LED6 13 // was 18
+#define LED7 15  // was 19
 
 #define FNLED 25 // indicates 2nd function mode
 
