@@ -42,10 +42,11 @@
 #include "io.h"
 
 //#define MONITOR_CPU1  // define to monitor Core 2 CPU usage on pin CPU_USE
-#define MONITOR_MAIN_LOOP // pulse CPU_USE pin every time we go thru the main loop 
+//#define MONITOR_MAIN_LOOP // pulse CPU_USE pin every time we go thru the main loop 
 
 #define SAMPLERATE 22050
 //#define SAMPLERATE 44100 // VCC-GND 16mb flash boards won't overclock fast enough for 44khz ?
+// #define DEBUG_ON
 
 PWMAudio DAC(PWMOUT);  // 16 bit PWM audio
 
@@ -218,11 +219,11 @@ uint16_t pitchtable[25]= {
 //#include "Angular_Techno_Set/samples.h"   // Techno
 //#include "Acoustic3/samples.h"   // acoustic drums
 //#include "Pico_kit/samples.h"   // assorted samples
-//#include "testkit/samples.h"   // small kit for testing
+#include "testkit/samples.h"   // small kit for testing
 //#include "Trashrez/samples.h"
 //#include "world/samples.h"
 //#include "testchords/samples.h"
-#include "303samples/samples.h"
+//#include "303samples/samples.h"
 
 #define NUM_SAMPLES (sizeof(sample)/sizeof(sample_t)) 
 
@@ -289,6 +290,10 @@ bool scanbuttons(void)
       if (debouncecnt[i]<=3) ++debouncecnt[i];
       if (debouncecnt[i]==2) { // trigger on second sample of key active
         button[i]=1;
+        #if defined DEBUG_ON
+          Serial.print("Button press ");
+          Serial.println(i);    
+        #endif 
       }
     }
     else {
@@ -356,8 +361,8 @@ void display_value(int16_t value, int32_t time, int16_t blinks){
     pattern=value;
     blinkcount=blinks;
   }
-  for (int i=LED7; i>=LED0;--i) { // can loop this way because port assignments are sequential
-    digitalWrite(i,value&1);
+  for (int i=7; i>=0;--i) { // LED port numbers on scarp are 1, 3, 5, 7 etc
+    digitalWrite(1 + (i * 2),value&1);
     value=value>>1;
   }
   display_timer=millis()+time;
@@ -621,11 +626,11 @@ void loop() {
     bool state;
     int8_t ledindex= seq[current_track].index - FN2nd*8; // show first 8 or 2nd 8 steps based on FN2nd state
     int8_t step=0;
-    for (int i=LED0;i<=LED7;++i) { // LED port numbers are sequential on the Pikocore
+    for (int i=0;i<=7;++i) { // LED port numbers on scarp are 1, 3, 5, 7 etc
       if (seq[current_track].velocity[step+FN2nd*8] !=0) state=1;
       else state=0;
       if (step == ledindex) state=!state; // show steps - invert led on triggered steps
-      digitalWrite(i,state);
+      digitalWrite(1 + (i * 2),state);
       ++step;
     }
   }

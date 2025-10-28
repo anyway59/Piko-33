@@ -73,4 +73,12 @@ See the tutorial video on Pikobeats (my other firmware for the Pikocore) and not
 First released version Nov 1 2023
 
 
+Notes about building:
+- follow the instructions above
+- for a 16M Pi Pico we have to use "Generic RP2040" board
+- then we can specify one of the 16M options for flash size
+- I found that "16M (no FS)" worked, but not sure if this is best
+- CPU speed was set to 133 Mhz. For any other options the software would not run
+
+
 
