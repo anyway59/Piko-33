@@ -57,6 +57,7 @@
 
 
 #define SHIFTBUTTON 18 // additional button  was 24 (USR)
+#define PAGEBUTTON 19 // additional button 
 
 #define LED0 1 // LED1 output on schematic was 12
 #define LED1 3  // was 13

@@ -219,17 +219,17 @@ uint16_t pitchtable[25]= {
 //#include "Angular_Techno_Set/samples.h"   // Techno
 //#include "Acoustic3/samples.h"   // acoustic drums
 //#include "Pico_kit/samples.h"   // assorted samples
-#include "testkit/samples.h"   // small kit for testing
+//#include "testkit/samples.h"   // small kit for testing
 //#include "Trashrez/samples.h"
 //#include "world/samples.h"
 //#include "testchords/samples.h"
-//#include "303samples/samples.h"
+#include "303samples/samples.h"
 
 #define NUM_SAMPLES (sizeof(sample)/sizeof(sample_t)) 
 
 // sample and debounce the keys
 
-#define NUM_BUTTONS 9 // 8 buttons plus USR button on VCC-GND board
+#define NUM_BUTTONS 10 // 8 buttons plus 2 custom buttons
 #define CLICK_TIME 350 // anything shorter than this is a button click, anything longer than this is button held
 
 #define BUT0 1 // bit masks for each button
@@ -241,13 +241,14 @@ uint16_t pitchtable[25]= {
 #define BUT6 64
 #define BUT7 128
 #define BUTSHIFT 256
+#define BUTPAGE 512
 // macro definitions of button states 
 #define BUTTONPRESSED(button) (button)  // last state was off, current state is on
 #define BUTTONDOWN(button) (button | (button << NUM_BUTTONS)) //last state was on, current state is on
 #define BUTTONRELEASED(button) (button << NUM_BUTTONS) //last state was on, current state is off
 
-uint8_t debouncecnt[NUM_BUTTONS] = {0,0,0,0,0,0,0,0,0}; // debounce counters
-bool button[NUM_BUTTONS]={0,0,0,0,0,0,0,0,0};  // key active flags
+uint8_t debouncecnt[NUM_BUTTONS] = {0,0,0,0,0,0,0,0,0,0}; // debounce counters
+bool button[NUM_BUTTONS]={0,0,0,0,0,0,0,0,0,0};  // key active flags
 #define SHIFT 8 // index of "shift" USR button 
 uint8_t FN2nd=0;  // for toggling between first and second 8 steps of the sequencer and 1st and 2nd set of parameters
 
@@ -284,16 +285,15 @@ bool scanbuttons(void)
       case 8:
         pressed=!digitalRead(SHIFTBUTTON);
         break;
+      case 9:
+        pressed=!digitalRead(PAGEBUTTON);
+        break;
     }
     
     if (pressed) { 
       if (debouncecnt[i]<=3) ++debouncecnt[i];
       if (debouncecnt[i]==2) { // trigger on second sample of key active
         button[i]=1;
-        #if defined DEBUG_ON
-          Serial.print("Button press ");
-          Serial.println(i);    
-        #endif 
       }
     }
     else {
@@ -390,6 +390,7 @@ void setup() {
   pinMode(BUTTON6, INPUT_PULLUP);
   pinMode(BUTTON7, INPUT_PULLUP);
   pinMode(SHIFTBUTTON, INPUT_PULLUP);
+  pinMode(PAGEBUTTON, INPUT_PULLUP);
 
   pinMode(AIN0, INPUT);
   pinMode(AIN1, INPUT);
@@ -445,7 +446,7 @@ void loop() {
 // makes it easy to detect state and change of state for any button or combination of buttons
 
   buttonvector=(lastbuttonstate << (NUM_BUTTONS)) | buttonbits();
-  lastbuttonstate=buttonvector & 0x1ff; // save last state
+  lastbuttonstate=buttonvector & 0x3ff; // save last state   : was 0x1ff before we added the 10th button
 
   if (buttonvector==0) buttontimer=millis(); // reset timer if no buttons are pressed
 
@@ -454,6 +455,7 @@ void loop() {
 
 // UI is driven by button clicks and presses (holds) which we handle here
   switch (buttonvector) {
+    case (BUTTONPRESSED(BUTPAGE)): 
     case (BUTTONPRESSED(BUTSHIFT)): // a button was pressed so start timing it to see if its a click or a hold
       display_value(1<<(7-current_track),FASTBLINK_TIME,NUMFASTBLINKS); // show the current track
     case (BUTTONPRESSED(BUT0)):
@@ -494,7 +496,7 @@ void loop() {
           }
       }
       break;
-    case (BUTTONRELEASED(BUTSHIFT)):  // shift button was released
+    case (BUTTONRELEASED(BUTPAGE)):  // page button was released
       if (!held) {  // !held means button was clicked
         if (FN2nd) {
           FN2nd=false; // UI has two modes toggled by the shift button
@@ -506,36 +508,38 @@ void loop() {
         }
       }
       break;  
+    
 
-    case (0b100000001100000000): // shift + button to select track  
+
+    case (0b01000000010100000000): // shift + button to select track  - was 0b100000001100000000
       current_track=0;
       display_value(1<<(7-current_track),FASTBLINK_TIME,NUMFASTBLINKS); // show the current track
       break; 
-    case (0b100000010100000000): // shift + button to select track  
+    case (0b01000000100100000000): // shift + button to select track   - was 0b100000010100000000
       current_track=1;
       display_value(1<<(7-current_track),FASTBLINK_TIME,NUMFASTBLINKS); // show the current track
       break;
-    case (0b100000100100000000): // shift + button to select track  
+    case (0b01000001000100000000): // shift + button to select track   - was 0b100000100100000000
       current_track=2;
       display_value(1<<(7-current_track),FASTBLINK_TIME,NUMFASTBLINKS); // show the current track
       break;
-    case (0b100001000100000000): // shift + button to select track  
+    case (0b01000010000100000000): // shift + button to select track   - was 0b100001000100000000
       current_track=3;
       display_value(1<<(7-current_track),FASTBLINK_TIME,NUMFASTBLINKS); // show the current track
       break;
-    case (0b100010000100000000): // shift + button to select track  
+    case (0b01000100000100000000): // shift + button to select track   - was 0b100010000100000000
       current_track=4;
       display_value(1<<(7-current_track),FASTBLINK_TIME,NUMFASTBLINKS); // show the current track
       break;  
-    case (0b100100000100000000): // shift + button to select track  
+    case (0b01001000000100000000): // shift + button to select track  - was 0b100100000100000000 
       current_track=5;
       display_value(1<<(7-current_track),FASTBLINK_TIME,NUMFASTBLINKS); // show the current track
       break;  
-    case (0b101000000100000000): // shift + button to select track  
+    case (0b01010000000100000000): // shift + button to select track   - was 0b101000000100000000
       current_track=6;
       display_value(1<<(7-current_track),FASTBLINK_TIME,NUMFASTBLINKS); // show the current track
       break;  
-    case (0b110000000100000000): // shift + button to select track  
+    case (0b01100000000100000000): // shift + button to select track   - was 0b110000000100000000
       current_track=7;
       display_value(1<<(7-current_track),FASTBLINK_TIME,NUMFASTBLINKS); // show the current track
       break; 
