@@ -41,6 +41,91 @@
 #include <PWMAudio.h>
 #include "io.h"
 
+
+// from pikocore for bpm calcs on clk input
+// this is unused, deprecate?
+#include "runningavg.h"
+RunningAverage ra;
+volatile int clk_display;
+uint32_t clk_sync_last;
+
+// clock timer 
+#define TIMER_INTERRUPT_DEBUG         0
+#define _TIMERINTERRUPT_LOGLEVEL_     4
+// Can be included as many times as necessary, without `Multiple Definitions` Linker Error
+#include "RPi_Pico_TimerInterrupt.h"
+unsigned int SWPin = CLOCKIN;
+#define TIMER0_INTERVAL_MS       1
+#define DEBOUNCING_INTERVAL_MS   2// 80
+#define LOCAL_DEBUG              1
+
+// Init RPI_PICO_Timer, can use any from 0-15 pseudo-hardware timers
+RPI_PICO_Timer ITimer0(0);
+
+volatile unsigned long rotationTime = 0;
+float RPM       = 0.00;
+float avgRPM    = 0.00;
+volatile int debounceCounter;
+
+// input clk tracking
+volatile int clk_state_last; // track the CLOCKIN pin state.
+
+int clk_state = 0;
+int clk_hits = 0;
+uint32_t clk_sync_ms = 0;
+bool sync = false; // used to detect if we have input sync
+
+
+bool TimerHandler0(struct repeating_timer *t)
+{  
+  (void) t;  
+  //if( digitalRead(SWPin) && clk_state_last != digitalRead(SWPin) && debounceCounter >= DEBOUNCING_INTERVAL_MS)
+  if( digitalRead(SWPin) && clk_state_last != digitalRead(SWPin))
+  {
+    //min time between pulses has passed
+    // calculate bpm
+    RPM = (float) ( 60000.0f / ( rotationTime * TIMER0_INTERVAL_MS ) / 2.0f );
+    //use running avg NOT volatile on timer
+    //ra.Update(RPM);
+    clk_display = RPM;
+    // these are for the sequencer
+    sync = true;
+
+#if (TIMER_INTERRUPT_DEBUG > 0)
+      Serial.print("rt = "); Serial.print(RPM);
+      //Serial.print("RPM = "); Serial.print(ra.Value());
+      Serial.print(", rotationTime ms = "); Serial.println(rotationTime * TIMER0_INTERVAL_MS);
+#endif
+    rotationTime = 0;
+    debounceCounter = 0;
+  }
+  else
+  {
+    debounceCounter++;
+  }
+  if (rotationTime >= 1000)
+  {
+    // If idle, set RPM to 0, don't increase rotationTime
+    sync = false ;// flag for seq.h
+
+    RPM = 0;
+#if (TIMER_INTERRUPT_DEBUG > 0)   
+    Serial.print("RPM = "); Serial.print(RPM); Serial.print(", rotationTime = "); Serial.println(rotationTime);
+#endif  
+    rotationTime = 0;
+  }
+  else
+  {
+    rotationTime++;
+  }
+  clk_state_last = digitalRead(SWPin);
+  return true;
+}
+
+
+
+
+
 //#define MONITOR_CPU1  // define to monitor Core 2 CPU usage on pin CPU_USE
 //#define MONITOR_MAIN_LOOP // pulse CPU_USE pin every time we go thru the main loop 
 
@@ -373,6 +458,17 @@ void display_value(int16_t value, int32_t time, int16_t blinks){
 void setup() {      
 
  Serial.begin(115200);
+  Serial.print(F("\nStarting RPM_Measure on ")); Serial.println(BOARD_NAME);
+  Serial.println(RPI_PICO_TIMER_INTERRUPT_VERSION);
+  Serial.print(F("CPU Frequency = ")); Serial.print(F_CPU / 1000000); Serial.println(F(" MHz"));
+    // Interval in microsecs
+  if(ITimer0.attachInterruptInterval(TIMER0_INTERVAL_MS * 1000, TimerHandler0))
+  {
+    Serial.print(F("Starting  ITimer0 OK, millis() = ")); Serial.println(millis());
+  }  else {
+    Serial.println(F("Can't set ITimer0. Select another freq. or timer"));
+   }
+  Serial.flush();   
 
 // Serial.print("Number of Samples ");
 // Serial.println(NUM_SAMPLES);      
@@ -407,6 +503,7 @@ void setup() {
   pinMode(FNLED,OUTPUT);
 
   pinMode(CLOCKOUT, OUTPUT);
+  pinMode(CLOCKIN, INPUT_PULLUP);
 
   pinMode(23, OUTPUT); // thi is to switch to PWM for power to avoid ripple noise
   digitalWrite(23, HIGH);  
@@ -425,6 +522,11 @@ void setup() {
   // Initiate serial MIDI communications, listen to all channels
   MIDI.begin(MIDI_CHANNEL_OMNI);
   */
+
+  // set up runningavg
+  ra.Init(5);
+
+
   for (int i=0; i< NUM_VOICES; ++i) { // silence all voices by setting sampleindex to last sample
     voice[i].sampleindex=sample[voice[i].sample].samplesize<<12; // sampleindex is a 20:12 fixed point number
   } 
@@ -440,6 +542,9 @@ void loop() {
 
   static uint32_t lastbuttonstate, buttonvector;
   static int32_t buttontimer;
+
+  // timer
+  uint32_t now = millis();
 
 #ifdef MONITOR_MAIN_LOOP  
   digitalWrite(CPU_USE,1); // pulse every time thru the main loop
@@ -661,6 +766,16 @@ void setup1() {
 
 // second core calculates samples and sends to DAC
 void loop1(){
+
+
+  // check if we have a new bpm value from interrupt
+  // since debouncing is flaky, force more than 1 bpm diff
+    //if (ra.Value() != bpm && ra.Value() > 49) {
+  if (RPM > bpm + 1 || RPM < bpm -1 && RPM > 49) {
+        //reset = true; //reset seq
+        bpm = RPM;
+  }
+
   int32_t newsample,samplesum=0;
   uint32_t index;
   int16_t samp0,samp1,delta,tracksample;

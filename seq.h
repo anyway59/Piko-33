@@ -5,14 +5,17 @@
 #define DEFAULT_VELOCITY_ON 100 // 
 #define DEFAULT_DIVIDER 6 // clock divider for 16th notes
 
+// from pikocore
+#define CLOCK_RATE 264000?
+
 #define TEMPO    120 // default tempo
 #define PPQN 24  // clocks per quarter note
-#define NOTE_DURATION (PPQN/6) // sixteenth note duration
+#define NOTE_DURATION (PPQN/12) // sixteenth note duration was  (PPQN/6) 
 #define CLOCKPULSE 15 // was 15duration of clock out pulse
 
 int16_t bpm = TEMPO;
 int32_t lastMIDIclock; // timestamp of last MIDI clock
-int16_t MIDIclocks=PPQN*2; // midi clock counter
+int16_t MIDIclocks=PPQN;  //  *2; // midi clock counter
 int16_t MIDIsync = 16;  // number of clocks required to sync BPM
 int16_t useMIDIclock = 0; // true if we are using MIDI clock
 long clocktimer = 0; // clock rate in ms
