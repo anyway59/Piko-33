@@ -70,9 +70,12 @@
 
 #define FNLED 25 // indicates 2nd function mode
 
+#define CLOCKOUT 16
+#define CLOCKIN 17
+
 // MIDI serial port pins - not really MIDI but the serial port is exposed on the first two jacks
-#define MIDIRX 17  // was 1
-#define MIDITX 16  // was 0
+#define MIDIRX 17
+#define MIDITX 16
 
 #endif // IO_H_
 

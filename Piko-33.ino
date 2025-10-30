@@ -406,6 +406,11 @@ void setup() {
   pinMode(LED7,OUTPUT);
   pinMode(FNLED,OUTPUT);
 
+  pinMode(CLOCKOUT, OUTPUT);
+
+  pinMode(23, OUTPUT); // thi is to switch to PWM for power to avoid ripple noise
+  digitalWrite(23, HIGH);  
+
 // set up Pico PWM audio output
 	DAC.setBuffers(4, 128); // DMA buffers 
 	DAC.begin(SAMPLERATE);

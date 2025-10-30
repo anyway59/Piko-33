@@ -8,12 +8,15 @@
 #define TEMPO    120 // default tempo
 #define PPQN 24  // clocks per quarter note
 #define NOTE_DURATION (PPQN/6) // sixteenth note duration
+#define CLOCKPULSE 15 // was 15duration of clock out pulse
+
 int16_t bpm = TEMPO;
 int32_t lastMIDIclock; // timestamp of last MIDI clock
 int16_t MIDIclocks=PPQN*2; // midi clock counter
 int16_t MIDIsync = 16;  // number of clocks required to sync BPM
 int16_t useMIDIclock = 0; // true if we are using MIDI clock
 long clocktimer = 0; // clock rate in ms
+bool reset = false; // used to reset bpm from CLOCKIN interrupt
 
 // table of 24 ppqn clock dividers for 4/4 time 1/32,1/16,1/8,1/4,1/2,1 bar,2 bars,4 bars
 int16_t divtable[] = {3,6,12,24,48,96,192,384};
@@ -135,13 +138,18 @@ void sync_sequencers(void) {
 }
 
 // must be called regularly for sequencer to run
-// 
+// hard wired to 16th notes at the moment
 void do_clocks(void) {
-  long clockperiod= (long)(((60.0/(float)bpm)/PPQN)*1000);
-  //long clockperiod= (long)(((60.0/(float)bpm)/NOTE_DURATION)*1000);
-  if ((millis() - clocktimer) > clockperiod) {
-    clocktimer=millis(); 
+  //long clockperiod= (long)(((60.0/(float)bpm)/PPQN)*1000);
+  long clockperiod = (long)(((60.0 / (float)bpm) / NOTE_DURATION) * 1000);
+  
+  if ( (millis() - clocktimer) > clockperiod || reset) {
+    clocktimer = millis();
     clocktick(clockperiod);
+    digitalWrite(CLOCKOUT, 1); // external clock high
+    // reset reset for interrupt
+    reset = false;
   }
+  if ((millis() - clocktimer) > CLOCKPULSE) digitalWrite(CLOCKOUT, 0); // external clock low
 }
 
