@@ -76,53 +76,6 @@ uint32_t clk_sync_ms = 0;
 bool sync = false; // used to detect if we have input sync
 
 
-bool TimerHandler0(struct repeating_timer *t)
-{  
-  (void) t;  
-  //if( digitalRead(SWPin) && clk_state_last != digitalRead(SWPin) && debounceCounter >= DEBOUNCING_INTERVAL_MS)
-  if( digitalRead(SWPin) && clk_state_last != digitalRead(SWPin))
-  {
-    //min time between pulses has passed
-    // calculate bpm
-    RPM = (float) ( 60000.0f / ( rotationTime * TIMER0_INTERVAL_MS ) / 2.0f );
-    //use running avg NOT volatile on timer
-    //ra.Update(RPM);
-    clk_display = RPM;
-    // these are for the sequencer
-    sync = true;
-
-#if (TIMER_INTERRUPT_DEBUG > 0)
-      Serial.print("rt = "); Serial.print(RPM);
-      //Serial.print("RPM = "); Serial.print(ra.Value());
-      Serial.print(", rotationTime ms = "); Serial.println(rotationTime * TIMER0_INTERVAL_MS);
-#endif
-    rotationTime = 0;
-    debounceCounter = 0;
-  }
-  else
-  {
-    debounceCounter++;
-  }
-  if (rotationTime >= 1000)
-  {
-    // If idle, set RPM to 0, don't increase rotationTime
-    sync = false ;// flag for seq.h
-
-    RPM = 0;
-#if (TIMER_INTERRUPT_DEBUG > 0)   
-    Serial.print("RPM = "); Serial.print(RPM); Serial.print(", rotationTime = "); Serial.println(rotationTime);
-#endif  
-    rotationTime = 0;
-  }
-  else
-  {
-    rotationTime++;
-  }
-  clk_state_last = digitalRead(SWPin);
-  return true;
-}
-
-
 
 
 
@@ -418,6 +371,56 @@ void HandleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
 
 // include here to avoid forward references - I'm lazy :)
 #include "seq.h"
+
+
+
+bool TimerHandler0(struct repeating_timer *t)
+{  
+  (void) t;  
+  //if( digitalRead(SWPin) && clk_state_last != digitalRead(SWPin) && debounceCounter >= DEBOUNCING_INTERVAL_MS)
+  if( digitalRead(SWPin) && clk_state_last != digitalRead(SWPin))
+  {
+    //min time between pulses has passed
+    // calculate bpm
+    RPM = (float) ( 60000.0f / ( rotationTime * TIMER0_INTERVAL_MS ) / 2.0f );
+    //use running avg NOT volatile on timer
+    //ra.Update(RPM);
+    clk_display = RPM;
+    // these are for the sequencer
+    sync = true;
+
+#if (TIMER_INTERRUPT_DEBUG > 0)
+      Serial.print("rt = "); Serial.print(RPM);
+      //Serial.print("RPM = "); Serial.print(ra.Value());
+      Serial.print(", rotationTime ms = "); Serial.println(rotationTime * TIMER0_INTERVAL_MS);
+#endif
+    rotationTime = 0;
+    debounceCounter = 0;
+  }
+  else
+  {
+    debounceCounter++;
+  }
+  if (rotationTime >= 1000)
+  {
+    // If idle, set RPM to 0, don't increase rotationTime
+    sync = false ;// flag for seq.h
+
+    RPM = 0;
+#if (TIMER_INTERRUPT_DEBUG > 0)   
+    Serial.print("RPM = "); Serial.print(RPM); Serial.print(", rotationTime = "); Serial.println(rotationTime);
+#endif  
+    rotationTime = 0;
+  }
+  else
+  {
+    rotationTime++;
+  }
+  clk_state_last = digitalRead(SWPin);
+  return true;
+}
+
+
 
 // edit a step on a track
 void edit_step(int track,int step) {
