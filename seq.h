@@ -12,6 +12,7 @@
 #define PPQN 24  // clocks per quarter note
 #define NOTE_DURATION (PPQN/6) // sixteenth note duration
 #define CLOCKPULSE 15 // was 15duration of clock out pulse
+#define SYNCGAP_DEBUG
 
 int16_t bpm = TEMPO;
 int32_t lastMIDIclock; // timestamp of last MIDI clock
@@ -154,6 +155,10 @@ void do_clocks(void) {
     if (sync) {
       syncgap = millis() - pulsetimer; // interval between pulse in and tick
       relative_syncgap =  (int16_t)( syncgap / clockperiod );
+      #if SYNCGAP_DEBUG
+        Serial.print("syncgap = "); Serial.print(syncgap);
+        Serial.print(",relative_syncgap = "); Serial.println(relative_syncgap);
+      #endif
     }
     clocktick(clockperiod);
     digitalWrite(CLOCKOUT, 1); // external clock high
