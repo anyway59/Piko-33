@@ -13,6 +13,10 @@
 #define NOTE_DURATION (PPQN/6) // sixteenth note duration
 #define CLOCKPULSE 15 // was 15duration of clock out pulse
 #define SYNCGAP_DEBUG
+#define RSG_LOW = 0.9 // if relative_syncgap above this then no adjustment needed
+#define RSG_HIGH = 0.1 // if relative_syncgap below this then no adjustment needed
+#define CLK_LWR = 0.9 // factor reduce clockperiod if seq ticks too late cp w pulse in
+#define CLK_INC = 1.1 // factor incr clockperiod if seq ticks too early cp w pulse in
 
 int16_t bpm = TEMPO;
 int32_t lastMIDIclock; // timestamp of last MIDI clock
