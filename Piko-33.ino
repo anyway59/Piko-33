@@ -388,6 +388,7 @@ bool TimerHandler0(struct repeating_timer *t)
     clk_display = RPM;
     // these are for the sequencer
     sync = true;
+    pulsetimer= millis();
 
 #if (TIMER_INTERRUPT_DEBUG > 0)
       Serial.print("rt = "); Serial.print(RPM);
