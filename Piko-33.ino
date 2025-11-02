@@ -760,6 +760,14 @@ void loop() {
     }
   }
 
+  // check if we have a new bpm value from interrupt
+  // since debouncing is flaky, force more than 1 bpm diff
+    //if (ra.Value() != bpm && ra.Value() > 49) {
+  if ((RPM > bpm + 1 || RPM < bpm -1) && RPM > 49) {
+        //reset = true; //reset seq
+        bpm = RPM;
+  }
+
 }
 
 // second core setup
@@ -771,14 +779,6 @@ void setup1() {
 // second core calculates samples and sends to DAC
 void loop1(){
 
-
-  // check if we have a new bpm value from interrupt
-  // since debouncing is flaky, force more than 1 bpm diff
-    //if (ra.Value() != bpm && ra.Value() > 49) {
-  if (RPM > bpm + 1 || RPM < bpm -1 && RPM > 49) {
-        //reset = true; //reset seq
-        bpm = RPM;
-  }
 
   int32_t newsample,samplesum=0;
   uint32_t index;
