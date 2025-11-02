@@ -1,4 +1,4 @@
-// sequencer related definitions and structures
+if// sequencer related definitions and structures
 #define NTRACKS 8   // we have 8 track sequences
 #define MAX_SEQ_STEPS 16 // up to 16 step sequencer
 #define DEFAULT_SEQ_STEPS 16 // up to 16 step sequencer
@@ -161,7 +161,7 @@ void do_clocks(void) {
     clockperiod = clockperiod * CLK_INC;
   }
   
-  if ( (millis() - clocktimer) > clockperiod || reset) {
+  if ( (millis() - clocktimer) > clockperiod) {
     clocktimer = millis();
     if (sync) {
       syncgap = millis() - pulsetimer; // interval between pulse in and tick
@@ -170,6 +170,25 @@ void do_clocks(void) {
         Serial.print("syncgap = "); Serial.print(syncgap);
         Serial.print(",relative_syncgap = "); Serial.println(relative_syncgap);
       #endif
+      if ( (relative_syncgap > RSG_HIGH )   && (relative_syncgap <= 0.5 )) {
+        syncadj = 1;
+        #if SYNCGAP_DEBUG
+           Serial.println("Tick is late. Reduce clockperiod");
+        #endif
+
+      } else if ( (relative_syncgap < RSG_LOW )   && (relative_syncgap > 0.5 )) {
+         syncadj = -1;
+        #if SYNCGAP_DEBUG
+           Serial.println("Tick is early. Increase clockperiod");
+        #endif
+
+      } else {
+         syncadj = 0;
+        #if SYNCGAP_DEBUG
+           Serial.println("Tick is OK. Leave clockperiod unchanged");
+        #endif
+
+      }
     }
     clocktick(clockperiod);
     digitalWrite(CLOCKOUT, 1); // external clock high
