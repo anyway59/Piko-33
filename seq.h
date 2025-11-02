@@ -28,6 +28,7 @@ long pulsetimer = 0;
 long syncgap = 0;
 int16_t relative_syncgap = 0;
 bool reset = false; // used to reset bpm from CLOCKIN interrupt
+int16_t syncadj = 0;
 
 // table of 24 ppqn clock dividers for 4/4 time 1/32,1/16,1/8,1/4,1/2,1 bar,2 bars,4 bars
 int16_t divtable[] = {3,6,12,24,48,96,192,384};
@@ -152,7 +153,13 @@ void sync_sequencers(void) {
 // hard wired to 16th notes at the moment
 void do_clocks(void) {
   //long clockperiod= (long)(((60.0/(float)bpm)/PPQN)*1000);
+
   long clockperiod = (long)(((60.0 / (float)bpm) / NOTE_DURATION) * 1000);
+  if  (syncadj > 0) {
+    clockperiod = clockperiod * CLK_LWR;
+  } else if  (syncadj < 0) {
+    clockperiod = clockperiod * CLK_INC;
+  }
   
   if ( (millis() - clocktimer) > clockperiod || reset) {
     clocktimer = millis();
