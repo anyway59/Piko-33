@@ -1,4 +1,4 @@
-if// sequencer related definitions and structures
+// sequencer related definitions and structures
 #define NTRACKS 8   // we have 8 track sequences
 #define MAX_SEQ_STEPS 16 // up to 16 step sequencer
 #define DEFAULT_SEQ_STEPS 16 // up to 16 step sequencer
@@ -12,11 +12,11 @@ if// sequencer related definitions and structures
 #define PPQN 24  // clocks per quarter note
 #define NOTE_DURATION (PPQN/6) // sixteenth note duration
 #define CLOCKPULSE 15 // was 15duration of clock out pulse
-#define SYNCGAP_DEBUG
-#define RSG_LOW = 0.9 // if relative_syncgap above this then no adjustment needed
-#define RSG_HIGH = 0.1 // if relative_syncgap below this then no adjustment needed
-#define CLK_LWR = 0.9 // factor reduce clockperiod if seq ticks too late cp w pulse in
-#define CLK_INC = 1.1 // factor incr clockperiod if seq ticks too early cp w pulse in
+#define SYNCGAP_DEBUG 
+#define RSG_LOW 750 // if relative_syncgap above this then no adjustment needed
+#define RSG_HIGH 800 // if relative_syncgap below this then no adjustment needed
+#define CLK_LWR 0.9 // factor reduce clockperiod if seq ticks too late cp w pulse in
+#define CLK_INC 1.1 // factor incr clockperiod if seq ticks too early cp w pulse in
 
 int16_t bpm = TEMPO;
 int32_t lastMIDIclock; // timestamp of last MIDI clock
@@ -154,37 +154,39 @@ void sync_sequencers(void) {
 void do_clocks(void) {
   //long clockperiod= (long)(((60.0/(float)bpm)/PPQN)*1000);
 
-  long clockperiod = (long)(((60.0 / (float)bpm) / NOTE_DURATION) * 1000);
+  long target_clockperiod = (long)(((60.0 / (float)bpm) / NOTE_DURATION) * 1000);
+  long clockperiod = target_clockperiod ;
   if  (syncadj > 0) {
-    clockperiod = clockperiod * CLK_LWR;
+    clockperiod = target_clockperiod  * CLK_LWR;
   } else if  (syncadj < 0) {
-    clockperiod = clockperiod * CLK_INC;
+    clockperiod = target_clockperiod  * CLK_INC;
   }
   
   if ( (millis() - clocktimer) > clockperiod) {
     clocktimer = millis();
     if (sync) {
       syncgap = millis() - pulsetimer; // interval between pulse in and tick
-      relative_syncgap =  (int16_t)( syncgap / clockperiod );
-      #if SYNCGAP_DEBUG
-        Serial.print("syncgap = "); Serial.print(syncgap);
+      relative_syncgap =  ( 1000 * (syncgap  % target_clockperiod ) / target_clockperiod );
+      #ifdef SYNCGAP_DEBUG
+        Serial.print("target_clockperiod = "); Serial.print(target_clockperiod);
+        Serial.print(",syncgap = "); Serial.print(syncgap);
         Serial.print(",relative_syncgap = "); Serial.println(relative_syncgap);
       #endif
-      if ( (relative_syncgap > RSG_HIGH )   && (relative_syncgap <= 0.5 )) {
-        syncadj = 1;
-        #if SYNCGAP_DEBUG
+      if ( (relative_syncgap > RSG_HIGH ) ) {
+        syncadj = 1;  // 1
+        #ifdef SYNCGAP_DEBUG
            Serial.println("Tick is late. Reduce clockperiod");
         #endif
 
-      } else if ( (relative_syncgap < RSG_LOW )   && (relative_syncgap > 0.5 )) {
-         syncadj = -1;
-        #if SYNCGAP_DEBUG
+      } else if ( (relative_syncgap < RSG_LOW )  ) {
+         syncadj = -1;  // -1
+        #ifdef SYNCGAP_DEBUG
            Serial.println("Tick is early. Increase clockperiod");
         #endif
 
       } else {
          syncadj = 0;
-        #if SYNCGAP_DEBUG
+        #ifdef SYNCGAP_DEBUG
            Serial.println("Tick is OK. Leave clockperiod unchanged");
         #endif
 

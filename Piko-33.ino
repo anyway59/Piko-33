@@ -257,11 +257,11 @@ uint16_t pitchtable[25]= {
 //#include "Angular_Techno_Set/samples.h"   // Techno
 //#include "Acoustic3/samples.h"   // acoustic drums
 //#include "Pico_kit/samples.h"   // assorted samples
-//#include "testkit/samples.h"   // small kit for testing
+#include "testkit/samples.h"   // small kit for testing
 //#include "Trashrez/samples.h"
 //#include "world/samples.h"
 //#include "testchords/samples.h"
-#include "303samples/samples.h"
+//#include "303samples/samples.h"
 
 #define NUM_SAMPLES (sizeof(sample)/sizeof(sample_t)) 
 
