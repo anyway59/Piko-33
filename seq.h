@@ -151,6 +151,10 @@ void do_clocks(void) {
   
   if ( (millis() - clocktimer) > clockperiod || reset) {
     clocktimer = millis();
+    if (sync) {
+      syncgap = millis() - pulsetimer; // interval between pulse in and tick
+      relative_syncgap =  (int16_t)( syncgap / clockperiod );
+    }
     clocktick(clockperiod);
     digitalWrite(CLOCKOUT, 1); // external clock high
     // reset reset for interrupt
