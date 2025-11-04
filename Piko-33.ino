@@ -389,6 +389,8 @@ bool TimerHandler0(struct repeating_timer *t)
     // these are for the sequencer
     sync = true;
     pulsetimer= millis();
+    pulsetimer_running=1;
+    tickcounter = 4;
 
 #if (TIMER_INTERRUPT_DEBUG > 0)
       Serial.print("rt = "); Serial.print(RPM);
@@ -591,6 +593,11 @@ void loop() {
             bpm=newbpm; // set BPM
             display_value(bpm-50,DISPLAY_TIME,NOBLINKS); // show BPM Pikocore style
           }
+          /*  
+          if(!potlock[2]){
+            int16_t newtargetsync=map(potvalue[2],POT_MIN,POT_MAX,0,999);
+            targetsync = newtargetsync;
+          }*/
           if(!potlock[0]) { // change sample if pot has moved enough
             int16_t newsample=(int16_t) map(potvalue[0],POT_MIN,POT_MAX,0,NUM_SAMPLES-1); // precompute new sample
             if (voice[current_track].sample != newsample) { 

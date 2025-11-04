@@ -29,6 +29,9 @@ long syncgap = 0;
 int16_t relative_syncgap = 0;
 bool reset = false; // used to reset bpm from CLOCKIN interrupt
 int16_t syncadj = 0;
+int16_t targetsync = 0;
+byte tickcounter = DEFAULT_DIVIDER;
+bool pulsetimer_running = 0;
 
 // table of 24 ppqn clock dividers for 4/4 time 1/32,1/16,1/8,1/4,1/2,1 bar,2 bars,4 bars
 int16_t divtable[] = {3,6,12,24,48,96,192,384};
@@ -154,31 +157,39 @@ void sync_sequencers(void) {
 void do_clocks(void) {
   //long clockperiod= (long)(((60.0/(float)bpm)/PPQN)*1000);
 
-  long target_clockperiod = (long)(((60.0 / (float)bpm) / NOTE_DURATION) * 1000);
+  long target_clockperiod = (long)(((60.0 / (float)bpm) / PPQN) * 1000);   // 24 ticks per step
+  long test_clockperiod = (long)(((60.0 / (float)bpm) / 4) * 1000);   // 1 step
   long clockperiod = target_clockperiod ;
   if  (syncadj > 0) {
-    clockperiod = target_clockperiod  * CLK_LWR;
+    clockperiod = target_clockperiod * CLK_LWR;
+    syncadj = 0;
   } else if  (syncadj < 0) {
-    clockperiod = target_clockperiod  * CLK_INC;
+    clockperiod = target_clockperiod * CLK_INC;
+    syncadj = 0;
   }
   
   if ( (millis() - clocktimer) > clockperiod) {
     clocktimer = millis();
     if (sync) {
+      if (pulsetimer_running) {
+        if ( tickcounter <= 0)
+      {
+      pulsetimer_running=0;
       syncgap = millis() - pulsetimer; // interval between pulse in and tick
-      relative_syncgap =  ( 1000 * (syncgap  % target_clockperiod ) / target_clockperiod );
+      relative_syncgap =  ( 1000 * (syncgap  % test_clockperiod ) / test_clockperiod );
       #ifdef SYNCGAP_DEBUG
-        Serial.print("target_clockperiod = "); Serial.print(target_clockperiod);
+        Serial.print("test_clockperiod = "); Serial.print(test_clockperiod);
         Serial.print(",syncgap = "); Serial.print(syncgap);
+        Serial.print(",targetsync = "); Serial.print(targetsync);
         Serial.print(",relative_syncgap = "); Serial.println(relative_syncgap);
       #endif
-      if ( (relative_syncgap > RSG_HIGH ) ) {
+      if ( syncgap > 100 ) {
         syncadj = 1;  // 1
         #ifdef SYNCGAP_DEBUG
            Serial.println("Tick is late. Reduce clockperiod");
         #endif
 
-      } else if ( (relative_syncgap < RSG_LOW )  ) {
+      } else if ( syncgap < 90  ) {
          syncadj = -1;  // -1
         #ifdef SYNCGAP_DEBUG
            Serial.println("Tick is early. Increase clockperiod");
@@ -191,6 +202,10 @@ void do_clocks(void) {
         #endif
 
       }
+    } else {
+      tickcounter-- ;
+    }
+    } 
     }
     clocktick(clockperiod);
     digitalWrite(CLOCKOUT, 1); // external clock high
