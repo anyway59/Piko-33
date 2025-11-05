@@ -15,8 +15,8 @@
 #define SYNCGAP_DEBUG 
 #define RSG_LOW 750 // if relative_syncgap above this then no adjustment needed
 #define RSG_HIGH 800 // if relative_syncgap below this then no adjustment needed
-#define CLK_LWR 0.9 // factor reduce clockperiod if seq ticks too late cp w pulse in
-#define CLK_INC 1.1 // factor incr clockperiod if seq ticks too early cp w pulse in
+#define CLK_LWR 0.8 // factor reduce clockperiod if seq ticks too late cp w pulse in
+#define CLK_INC 1.2 // factor incr clockperiod if seq ticks too early cp w pulse in
 
 int16_t bpm = TEMPO;
 int32_t lastMIDIclock; // timestamp of last MIDI clock
@@ -26,12 +26,13 @@ int16_t useMIDIclock = 0; // true if we are using MIDI clock
 long clocktimer = 0; // clock rate in ms
 long pulsetimer = 0;
 long syncgap = 0;
-int16_t relative_syncgap = 0;
+
 bool reset = false; // used to reset bpm from CLOCKIN interrupt
 int16_t syncadj = 0;
 int16_t targetsync = 0;
-byte tickcounter = DEFAULT_DIVIDER;
+byte clockincounter = 99;
 bool pulsetimer_running = 0;
+bool syncgap_newvalue = 0;
 
 // table of 24 ppqn clock dividers for 4/4 time 1/32,1/16,1/8,1/4,1/2,1 bar,2 bars,4 bars
 int16_t divtable[] = {3,6,12,24,48,96,192,384};
@@ -130,6 +131,11 @@ void clocktick (long clockperiod) {
     if (seq[track].clockticks <1) { // clock has counted down, do next step
       seq[track].clockticks = seq[track].divider; // reset the clock counter
       ++seq[track].index;
+      if (track == 0 && seq[track].index == 1 ) {   // index has just gone to one - start timer
+       if (!pulsetimer_running) {
+         pulsetimer_running=1;
+         pulsetimer = millis();
+         } }
       if ((seq[track].index) >= DEFAULT_SEQ_STEPS) seq[track].index=0; // restart the sequence 
       if (seq[track].enabled && (seq[track].velocity[seq[track].index] > 0)) { // velocity > 0 is a note on
         if (random(0,122) < seq[track].probability[seq[track].index]) { // probability threshold for 100% is a little lower - allows for a bit of slop in the pot
@@ -158,38 +164,32 @@ void do_clocks(void) {
   //long clockperiod= (long)(((60.0/(float)bpm)/PPQN)*1000);
 
   long target_clockperiod = (long)(((60.0 / (float)bpm) / PPQN) * 1000);   // 24 ticks per step
-  long test_clockperiod = (long)(((60.0 / (float)bpm) / 4) * 1000);   // 1 step
+  //long test_clockperiod = (long)(((60.0 / (float)bpm) / 4) * 1000);   // 1 step
   long clockperiod = target_clockperiod ;
-  if  (syncadj > 0) {
-    clockperiod = target_clockperiod * CLK_LWR;
-    syncadj = 0;
-  } else if  (syncadj < 0) {
-    clockperiod = target_clockperiod * CLK_INC;
-    syncadj = 0;
-  }
+  targetsync = clockperiod * 6;
+
   
-  if ( (millis() - clocktimer) > clockperiod) {
+  if ( (millis() - clocktimer + syncadj) > clockperiod) {
+    if (syncadj != 0) {
+      syncadj=0;
+    }
     clocktimer = millis();
     if (sync) {
-      if (pulsetimer_running) {
-        if ( tickcounter <= 0)
-      {
-      pulsetimer_running=0;
-      syncgap = millis() - pulsetimer; // interval between pulse in and tick
-      relative_syncgap =  ( 1000 * (syncgap  % test_clockperiod ) / test_clockperiod );
       #ifdef SYNCGAP_DEBUG
-        Serial.print("test_clockperiod = "); Serial.print(test_clockperiod);
-        Serial.print(",syncgap = "); Serial.print(syncgap);
-        Serial.print(",targetsync = "); Serial.print(targetsync);
-        Serial.print(",relative_syncgap = "); Serial.println(relative_syncgap);
+        if (syncgap_newvalue) { 
+        Serial.print("syncgap = "); Serial.print(syncgap);
+        Serial.print(",targetsync = "); Serial.println(targetsync);
+        }
       #endif
-      if ( syncgap > 100 ) {
+      if (syncgap_newvalue) {
+        syncgap_newvalue=0;
+      if ( syncgap > (targetsync + 5) ) {
         syncadj = 1;  // 1
         #ifdef SYNCGAP_DEBUG
            Serial.println("Tick is late. Reduce clockperiod");
         #endif
 
-      } else if ( syncgap < 90  ) {
+      } else if ( syncgap < (targetsync - 5) ) {
          syncadj = -1;  // -1
         #ifdef SYNCGAP_DEBUG
            Serial.println("Tick is early. Increase clockperiod");
@@ -202,10 +202,8 @@ void do_clocks(void) {
         #endif
 
       }
-    } else {
-      tickcounter-- ;
-    }
-    } 
+      }
+
     }
     clocktick(clockperiod);
     digitalWrite(CLOCKOUT, 1); // external clock high

@@ -388,9 +388,22 @@ bool TimerHandler0(struct repeating_timer *t)
     clk_display = RPM;
     // these are for the sequencer
     sync = true;
-    pulsetimer= millis();
-    pulsetimer_running=1;
-    tickcounter = 4;
+    if (pulsetimer_running)
+        {
+          if ( clockincounter == 99 ) {
+            clockincounter = 0;
+            pulsetimer_running=0;
+            syncgap = millis() - pulsetimer;
+            syncgap_newvalue = 1;
+          } else {
+          clockincounter = (clockincounter++ % 8);
+          if ( clockincounter == 0 ) {
+            pulsetimer_running=0;
+            syncgap = millis() - pulsetimer;
+            syncgap_newvalue = 1;
+          }
+        } 
+        }
 
 #if (TIMER_INTERRUPT_DEBUG > 0)
       Serial.print("rt = "); Serial.print(RPM);
