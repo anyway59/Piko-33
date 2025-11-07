@@ -59,6 +59,7 @@ unsigned int SWPin = CLOCKIN;
 #define DEBOUNCING_INTERVAL_MS   2// 80
 #define LOCAL_DEBUG              1
 
+
 // Init RPI_PICO_Timer, can use any from 0-15 pseudo-hardware timers
 RPI_PICO_Timer ITimer0(0);
 
@@ -388,6 +389,7 @@ bool TimerHandler0(struct repeating_timer *t)
     clk_display = RPM;
     // these are for the sequencer
     sync = true;
+    clockin_received=1;
     if (pulsetimer_running)
         {
           if ( clockincounter == 99 ) {
@@ -783,9 +785,13 @@ void loop() {
   // check if we have a new bpm value from interrupt
   // since debouncing is flaky, force more than 1 bpm diff
     //if (ra.Value() != bpm && ra.Value() > 49) {
-  if ((RPM > bpm + 1 || RPM < bpm -1) && RPM > 49) {
+  if ((RPM  > bpm + 1 || RPM < bpm -1) && RPM > 49) {
         //reset = true; //reset seq
-        bpm = RPM;
+        int16_t prev_bpm = bpm;
+        bpm = RPM ;
+        if ( bpm == 0){
+          bpm = prev_bpm;
+        }
   }
 
 }

@@ -13,10 +13,7 @@
 #define NOTE_DURATION (PPQN/6) // sixteenth note duration
 #define CLOCKPULSE 15 // was 15duration of clock out pulse
 #define SYNCGAP_DEBUG 
-#define RSG_LOW 750 // if relative_syncgap above this then no adjustment needed
-#define RSG_HIGH 800 // if relative_syncgap below this then no adjustment needed
-#define CLK_LWR 0.8 // factor reduce clockperiod if seq ticks too late cp w pulse in
-#define CLK_INC 1.2 // factor incr clockperiod if seq ticks too early cp w pulse in
+#define EXPECTED_INTERVAL_TICKS 11
 
 int16_t bpm = TEMPO;
 int32_t lastMIDIclock; // timestamp of last MIDI clock
@@ -29,9 +26,12 @@ long syncgap = 0;
 
 bool reset = false; // used to reset bpm from CLOCKIN interrupt
 int16_t syncadj = 0;
+
 int16_t targetsync = 0;
+byte interval_click_count = 0;
 byte clockincounter = 99;
 bool pulsetimer_running = 0;
+bool clockin_received = 0;
 bool syncgap_newvalue = 0;
 
 // table of 24 ppqn clock dividers for 4/4 time 1/32,1/16,1/8,1/4,1/2,1 bar,2 bars,4 bars
@@ -163,53 +163,41 @@ void sync_sequencers(void) {
 void do_clocks(void) {
   //long clockperiod= (long)(((60.0/(float)bpm)/PPQN)*1000);
 
-  long target_clockperiod = (long)(((60.0 / (float)bpm) / PPQN) * 1000);   // 24 ticks per step
-  //long test_clockperiod = (long)(((60.0 / (float)bpm) / 4) * 1000);   // 1 step
-  long clockperiod = target_clockperiod ;
-  targetsync = clockperiod * 6;
+  long clockperiod = (long)(((60.0 / (float)bpm) / PPQN) * 1000);   // 24 ticks per step
 
-  
-  if ( (millis() - clocktimer + syncadj) > clockperiod) {
-    if (syncadj != 0) {
-      syncadj=0;
-    }
+
+
+  if (clockin_received) {
+    clockin_received=0;
     clocktimer = millis();
-    if (sync) {
+    clocktick(clockperiod);
       #ifdef SYNCGAP_DEBUG
-        if (syncgap_newvalue) { 
-        Serial.print("syncgap = "); Serial.print(syncgap);
-        Serial.print(",targetsync = "); Serial.println(targetsync);
+        Serial.print("RPM = "); Serial.print(RPM);
+        Serial.print(",bpm = "); Serial.print(bpm);
+        Serial.print(",clockperiod = "); Serial.print(clockperiod);
+        Serial.print(",interval_click_count = "); Serial.println(interval_click_count);
+        if (syncgap_newvalue) {
+          Serial.print("Syncgap = "); Serial.println(syncgap);
         }
       #endif
-      if (syncgap_newvalue) {
-        syncgap_newvalue=0;
-      if ( syncgap > (targetsync + 5) ) {
-        syncadj = 1;  // 1
-        #ifdef SYNCGAP_DEBUG
-           Serial.println("Tick is late. Reduce clockperiod");
-        #endif
-
-      } else if ( syncgap < (targetsync - 5) ) {
-         syncadj = -1;  // -1
-        #ifdef SYNCGAP_DEBUG
-           Serial.println("Tick is early. Increase clockperiod");
-        #endif
-
-      } else {
-         syncadj = 0;
-        #ifdef SYNCGAP_DEBUG
-           Serial.println("Tick is OK. Leave clockperiod unchanged");
-        #endif
-
-      }
-      }
-
-    }
-    clocktick(clockperiod);
-    digitalWrite(CLOCKOUT, 1); // external clock high
+    interval_click_count=0;
+  } else { 
+    if (( (millis() - clocktimer) ) > clockperiod) {
+       if (interval_click_count < EXPECTED_INTERVAL_TICKS) {
+         interval_click_count++;
+          clocktimer = millis();
+          clocktick(clockperiod);
+    //digitalWrite(CLOCKOUT, 1); // external clock high
     // reset reset for interrupt
-    reset = false;
+    //reset = false;
+  
+       }
+    }
+
   }
-  if ((millis() - clocktimer) > CLOCKPULSE) digitalWrite(CLOCKOUT, 0); // external clock low
+  
+
+  //if ((millis() - clocktimer) > CLOCKPULSE) digitalWrite(CLOCKOUT, 0); // external clock low
 }
+
 
