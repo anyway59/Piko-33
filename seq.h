@@ -12,7 +12,7 @@
 #define PPQN 24  // clocks per quarter note
 #define NOTE_DURATION (PPQN/6) // sixteenth note duration
 #define CLOCKPULSE 15 // was 15duration of clock out pulse
-#define SYNCGAP_DEBUG 
+// #define SYNCGAP_DEBUG 
 #define EXPECTED_INTERVAL_TICKS 11
 
 int16_t bpm = TEMPO;
@@ -23,9 +23,10 @@ int16_t useMIDIclock = 0; // true if we are using MIDI clock
 long clocktimer = 0; // clock rate in ms
 long pulsetimer = 0;
 long syncgap = 0;
+long baseline_syncgap = 0;
 
 bool reset = false; // used to reset bpm from CLOCKIN interrupt
-int16_t syncadj = 0;
+int16_t indexAtPulse = 0;
 
 int16_t targetsync = 0;
 byte interval_click_count = 0;
@@ -33,6 +34,8 @@ byte clockincounter = 99;
 bool pulsetimer_running = 0;
 bool clockin_received = 0;
 bool syncgap_newvalue = 0;
+byte sync_status = 0;
+byte sync_ok_count = 0;
 
 // table of 24 ppqn clock dividers for 4/4 time 1/32,1/16,1/8,1/4,1/2,1 bar,2 bars,4 bars
 int16_t divtable[] = {3,6,12,24,48,96,192,384};
@@ -131,12 +134,12 @@ void clocktick (long clockperiod) {
     if (seq[track].clockticks <1) { // clock has counted down, do next step
       seq[track].clockticks = seq[track].divider; // reset the clock counter
       ++seq[track].index;
-      if (track == 0 && seq[track].index == 1 ) {   // index has just gone to one - start timer
+      if ((seq[track].index) >= DEFAULT_SEQ_STEPS) seq[track].index=0; // restart the sequence 
+      if (track == 0 && seq[track].index == 0 ) {   // index has just gone to zero - start timer
        if (!pulsetimer_running) {
          pulsetimer_running=1;
          pulsetimer = millis();
          } }
-      if ((seq[track].index) >= DEFAULT_SEQ_STEPS) seq[track].index=0; // restart the sequence 
       if (seq[track].enabled && (seq[track].velocity[seq[track].index] > 0)) { // velocity > 0 is a note on
         if (random(0,122) < seq[track].probability[seq[track].index]) { // probability threshold for 100% is a little lower - allows for a bit of slop in the pot
           voice[track].level=seq[track].velocity[seq[track].index]; // set the volume level
@@ -156,6 +159,17 @@ void sync_sequencers(void) {
   for (uint8_t track=0; track<NTRACKS;++track) { // 
     seq[track].clockticks = 1; // set the clock counter so it will roll over 
   }
+}
+// sync all the sequencers by resetting their clocks
+void sync_sequencers_and_indexes(void) {
+  for (uint8_t track=0; track<NTRACKS;++track) { // 
+    seq[track].clockticks = 1; // set the clock counter so it will roll over 
+    seq[track].index = DEFAULT_SEQ_STEPS;
+  }
+}
+
+uint16_t read_index(void) {
+   return seq[0].index;
 }
 
 // must be called regularly for sequencer to run
@@ -177,7 +191,8 @@ void do_clocks(void) {
         Serial.print(",clockperiod = "); Serial.print(clockperiod);
         Serial.print(",interval_click_count = "); Serial.println(interval_click_count);
         if (syncgap_newvalue) {
-          Serial.print("Syncgap = "); Serial.println(syncgap);
+          Serial.print("indexAtPulse = "); Serial.print(indexAtPulse);
+          Serial.print(",Syncgap = "); Serial.println(syncgap);
         }
       #endif
     interval_click_count=0;

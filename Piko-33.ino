@@ -80,6 +80,7 @@ bool sync = false; // used to detect if we have input sync
 
 
 
+
 //#define MONITOR_CPU1  // define to monitor Core 2 CPU usage on pin CPU_USE
 //#define MONITOR_MAIN_LOOP // pulse CPU_USE pin every time we go thru the main loop 
 
@@ -403,6 +404,44 @@ bool TimerHandler0(struct repeating_timer *t)
             pulsetimer_running=0;
             syncgap = millis() - pulsetimer;
             syncgap_newvalue = 1;
+            indexAtPulse = read_index();
+            if (sync_status == 0){     // reset and get baseline
+                sync_sequencers_and_indexes();
+                #ifdef SYNCGAP_DEBUG
+                Serial.print("sync_status = "); Serial.print(sync_status);
+                Serial.println(",Sync reset happened");
+                #endif
+                baseline_syncgap = syncgap;
+                sync_status++;
+            } else if  (sync_status == 1){     // maintain against baseline
+               #ifdef SYNCGAP_DEBUG
+               Serial.print("baseline_syncgap = "); Serial.print(baseline_syncgap);
+               Serial.print(",syncgap = "); Serial.println(syncgap);
+               #endif
+               if (( baseline_syncgap > (syncgap-2)  ) && (baseline_syncgap < (syncgap+2)  ) ) {
+                sync_ok_count++;
+                if (sync_ok_count > 2 ) {
+                    sync_ok_count=2;
+                }
+                #ifdef SYNCGAP_DEBUG
+                Serial.println("Sync is stable");
+                #endif
+               } else {
+
+                 if (sync_ok_count > 0 ) {
+                  sync_ok_count--; 
+                 } else {
+                    sync_status = 0;
+                    #ifdef SYNCGAP_DEBUG
+                    Serial.println("Unable to maintain sync-gap - to to reset");
+                    #endif
+                }
+                            
+               }
+            } else {
+              sync_status = 0;
+            }
+
           }
         } 
         }
@@ -626,7 +665,8 @@ void loop() {
             int16_t newdivider=divtable[divindex]; // precompute new clock divider
             if (seq[current_track].divider != newdivider) { 
               seq[current_track].divider = newdivider; 
-              sync_sequencers();  // sync all sequencers to maintain phase relationship
+              //sync_sequencers();  // sync all sequencers to maintain phase relationship
+              sync_sequencers_and_indexes(); 
               display_value(1<<(7-divindex),DISPLAY_TIME,NOBLINKS); // show divider
             }
           }
