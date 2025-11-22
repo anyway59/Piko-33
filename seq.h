@@ -12,7 +12,7 @@
 #define PPQN 24  // clocks per quarter note
 #define NOTE_DURATION (PPQN/6) // sixteenth note duration
 #define CLOCKPULSE 15 // was 15duration of clock out pulse
-#define SYNCGAP_DEBUG 
+//#define SYNCGAP_DEBUG 
 #define EXPECTED_INTERVAL_TICKS 11
 
 int16_t bpm = TEMPO;
@@ -27,6 +27,8 @@ long baseline_syncgap = 0;
 
 bool reset = false; // used to reset bpm from CLOCKIN interrupt
 int16_t indexAtPulse = 0;
+bool update_baseline_syncgap = 1;
+byte num_consecutive_resets = 0;
 
 int16_t targetsync = 0;
 byte interval_click_count = 0;

@@ -57,7 +57,7 @@ uint32_t clk_sync_last;
 unsigned int SWPin = CLOCKIN;
 #define TIMER0_INTERVAL_MS       1
 #define DEBOUNCING_INTERVAL_MS   2// 80
-#define LOCAL_DEBUG              1
+// #define LOCAL_DEBUG              1
 
 
 // Init RPI_PICO_Timer, can use any from 0-15 pseudo-hardware timers
@@ -86,7 +86,7 @@ bool sync = false; // used to detect if we have input sync
 
 #define SAMPLERATE 22050
 //#define SAMPLERATE 44100 // VCC-GND 16mb flash boards won't overclock fast enough for 44khz ?
-#define DEBUG_ON
+// #define DEBUG_ON
 
 PWMAudio DAC(PWMOUT);  // 16 bit PWM audio
 
@@ -259,13 +259,13 @@ uint16_t pitchtable[25]= {
 //#include "Angular_Techno_Set/samples.h"   // Techno
 //#include "Acoustic3/samples.h"   // acoustic drums
 //#include "Pico_kit/samples.h"   // assorted samples
-#include "testkit/samples.h"   // small kit for testing
+//#include "testkit/samples.h"   // small kit for testing
 //#include "Trashrez/samples.h"
 //#include "world/samples.h"
 //#include "testchords/samples.h"
 //#include "303samples/samples.h"
 //#include "philsamples/samples.h"
-//#include "303test/samples.h"
+#include "303test/samples.h"
 
 #define NUM_SAMPLES (sizeof(sample)/sizeof(sample_t)) 
 
@@ -417,7 +417,23 @@ bool TimerHandler0(struct repeating_timer *t)
                   Serial.print("sync_status = "); Serial.print(sync_status);
                   Serial.println(",Sync reset happened");
                 #endif
-                baseline_syncgap = syncgap;
+                if (update_baseline_syncgap) {   // the baseline_syncgap should not change unless there is a change of tempo, or the syncgap is not maintainable
+                   baseline_syncgap = syncgap;
+                   update_baseline_syncgap=0;  
+                   #ifdef SYNCGAP_DEBUG 
+                       Serial.println("Baseline syncgap updated");
+                   #endif
+                } else {
+                  if (num_consecutive_resets > 2) {
+                    update_baseline_syncgap=1; // baseline_syncgap is not maintainable, so take a new reading
+                    num_consecutive_resets=0;  
+                   #ifdef SYNCGAP_DEBUG 
+                       Serial.println("Too many resets. Take new Baseline syncgap");
+                   #endif
+                  } else {
+                    ++num_consecutive_resets;
+                  }
+                }
                 sync_status++;
             } else if  (sync_status == 1){     // maintain against baseline
                #ifdef SYNCGAP_DEBUG
@@ -428,12 +444,16 @@ bool TimerHandler0(struct repeating_timer *t)
                #endif
                if (( baseline_syncgap > (syncgap-2)  ) && (baseline_syncgap < (syncgap+2)  ) ) {
                 sync_ok_count++;
+                num_consecutive_resets=0;
                 if (sync_ok_count > 2 ) {
                     sync_ok_count=2;
+                     
+
                 }
                 #ifdef SYNCGAP_DEBUG
                 if (sync_gap_debug_cnt > 0 ) {
                   --sync_gap_debug_cnt;
+                  update_baseline_syncgap=0;
                   Serial.println("Sync is stable");
                 }
                 #endif
@@ -844,6 +864,11 @@ void loop() {
         if ( bpm == 0){
           bpm = prev_bpm;
         }
+        #ifdef SYNCGAP_DEBUG
+          Serial.println("Change of tempo detected, update the update_baseline_syncgap");
+        #endif
+
+        update_baseline_syncgap=1;
   }
 
 }
