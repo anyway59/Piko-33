@@ -259,13 +259,13 @@ uint16_t pitchtable[25]= {
 //#include "Angular_Techno_Set/samples.h"   // Techno
 //#include "Acoustic3/samples.h"   // acoustic drums
 //#include "Pico_kit/samples.h"   // assorted samples
-//#include "testkit/samples.h"   // small kit for testing
+#include "testkit/samples.h"   // small kit for testing
 //#include "Trashrez/samples.h"
 //#include "world/samples.h"
 //#include "testchords/samples.h"
 //#include "303samples/samples.h"
 //#include "philsamples/samples.h"
-#include "303test/samples.h"
+//#include "303test/samples.h"
 
 #define NUM_SAMPLES (sizeof(sample)/sizeof(sample_t)) 
 
@@ -413,50 +413,60 @@ bool TimerHandler0(struct repeating_timer *t)
             if (sync_status == 0){     // reset and get baseline
                 sync_sequencers_and_indexes();
                 #ifdef SYNCGAP_DEBUG
-                  sync_gap_debug_cnt=8;
+                  //sync_gap_debug_cnt=8;
                   Serial.print("sync_status = "); Serial.print(sync_status);
-                  Serial.println(",Sync reset happened");
+                  Serial.println(",Sync reset happened (status 0)");
                 #endif
                 if (update_baseline_syncgap) {   // the baseline_syncgap should not change unless there is a change of tempo, or the syncgap is not maintainable
                    baseline_syncgap = syncgap;
-                   update_baseline_syncgap=0;  
+                     
                    #ifdef SYNCGAP_DEBUG 
-                       Serial.println("Baseline syncgap updated");
+                       Serial.println("Baseline syncgap updated (status 0)");
+                       Serial.println("Moving to status 1");
                    #endif
+                  sync_status++; 
                 } else {
                   if (num_consecutive_resets > 2) {
                     update_baseline_syncgap=1; // baseline_syncgap is not maintainable, so take a new reading
                     num_consecutive_resets=0;  
                    #ifdef SYNCGAP_DEBUG 
-                       Serial.println("Too many resets. Take new Baseline syncgap");
+                       Serial.println("Too many resets (status 0)");
+                       Serial.println("Stay at status 0 to reset and take new Baseline syncgap ");
                    #endif
                   } else {
                     ++num_consecutive_resets;
+                    sync_status++;
+                   #ifdef SYNCGAP_DEBUG 
+                       Serial.println("We did a reset but we kept the baseline_syncgap as before (status 0)");
+                       Serial.println("Moving to status 1");
+                   #endif
                   }
                 }
-                sync_status++;
+
             } else if  (sync_status == 1){     // maintain against baseline
                #ifdef SYNCGAP_DEBUG
-               if (sync_gap_debug_cnt > 0 ) {
+               //if (sync_gap_debug_cnt > 0 ) {
                  Serial.print("baseline_syncgap = "); Serial.print(baseline_syncgap);
                  Serial.print(",syncgap = "); Serial.println(syncgap);
-               }
+               //}
                #endif
                if (( baseline_syncgap > (syncgap-2)  ) && (baseline_syncgap < (syncgap+2)  ) ) {
+               #ifdef SYNCGAP_DEBUG
+                  Serial.println("Sync gap OK (status 1)");
+               #endif                
                 sync_ok_count++;
                 num_consecutive_resets=0;
                 if (sync_ok_count > 2 ) {
                     sync_ok_count=2;
-                     
+                    update_baseline_syncgap=0;    // do not update baseline_syncgap any more unless tempo changes or multiple consecutive sync attempts fail
+                  #ifdef SYNCGAP_DEBUG
+                 // if (sync_gap_debug_cnt > 0 ) {
+                  // --sync_gap_debug_cnt;
+                   Serial.println("Sync is stable (status 1)");
+                  //}
+                  #endif
+                }
 
-                }
-                #ifdef SYNCGAP_DEBUG
-                if (sync_gap_debug_cnt > 0 ) {
-                  --sync_gap_debug_cnt;
-                  update_baseline_syncgap=0;
-                  Serial.println("Sync is stable");
-                }
-                #endif
                } else {
 
                  if (sync_ok_count > 0 ) {
@@ -464,14 +474,18 @@ bool TimerHandler0(struct repeating_timer *t)
                  } else {
                     sync_status = 0;
                     #ifdef SYNCGAP_DEBUG
-                    sync_gap_debug_cnt=8;
-                    Serial.println("Unable to maintain sync-gap - do a reset");
+                    //sync_gap_debug_cnt=8;
+                    Serial.println("Unable to maintain sync-gap - do a reset  (status 1)");
+                    Serial.println("Moving to status 0 for reset.");
                     #endif
                 }
                             
                }
             } else {
               sync_status = 0;
+                    #ifdef SYNCGAP_DEBUG
+                    Serial.println("ERROR: Moving to status 0 for reset.");
+                    #endif
             }
 
           }

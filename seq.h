@@ -12,7 +12,7 @@
 #define PPQN 24  // clocks per quarter note
 #define NOTE_DURATION (PPQN/6) // sixteenth note duration
 #define CLOCKPULSE 15 // was 15duration of clock out pulse
-//#define SYNCGAP_DEBUG 
+// #define SYNCGAP_DEBUG 
 #define EXPECTED_INTERVAL_TICKS 11
 
 int16_t bpm = TEMPO;
