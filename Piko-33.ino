@@ -86,7 +86,7 @@ bool sync = false; // used to detect if we have input sync
 
 #define SAMPLERATE 22050
 //#define SAMPLERATE 44100 // VCC-GND 16mb flash boards won't overclock fast enough for 44khz ?
-// #define DEBUG_ON
+#define DEBUG_ON
 
 PWMAudio DAC(PWMOUT);  // 16 bit PWM audio
 
@@ -264,6 +264,8 @@ uint16_t pitchtable[25]= {
 //#include "world/samples.h"
 //#include "testchords/samples.h"
 //#include "303samples/samples.h"
+//#include "philsamples/samples.h"
+//#include "303test/samples.h"
 
 #define NUM_SAMPLES (sizeof(sample)/sizeof(sample_t)) 
 
@@ -323,7 +325,7 @@ bool scanbuttons(void)
         pressed=!digitalRead(BUTTON7);
         break;
       case 8:
-        pressed=!digitalRead(SHIFTBUTTON);
+        pressed=!digitalRead(SHIFTBUTTON); 
         break;
       case 9:
         pressed=!digitalRead(PAGEBUTTON);
@@ -334,6 +336,9 @@ bool scanbuttons(void)
       if (debouncecnt[i]<=3) ++debouncecnt[i];
       if (debouncecnt[i]==2) { // trigger on second sample of key active
         button[i]=1;
+                #ifdef DEBUG_ON
+                Serial.print("button press = "); Serial.println(i);
+                #endif
       }
     }
     else {
@@ -408,15 +413,18 @@ bool TimerHandler0(struct repeating_timer *t)
             if (sync_status == 0){     // reset and get baseline
                 sync_sequencers_and_indexes();
                 #ifdef SYNCGAP_DEBUG
-                Serial.print("sync_status = "); Serial.print(sync_status);
-                Serial.println(",Sync reset happened");
+                  sync_gap_debug_cnt=8;
+                  Serial.print("sync_status = "); Serial.print(sync_status);
+                  Serial.println(",Sync reset happened");
                 #endif
                 baseline_syncgap = syncgap;
                 sync_status++;
             } else if  (sync_status == 1){     // maintain against baseline
                #ifdef SYNCGAP_DEBUG
-               Serial.print("baseline_syncgap = "); Serial.print(baseline_syncgap);
-               Serial.print(",syncgap = "); Serial.println(syncgap);
+               if (sync_gap_debug_cnt > 0 ) {
+                 Serial.print("baseline_syncgap = "); Serial.print(baseline_syncgap);
+                 Serial.print(",syncgap = "); Serial.println(syncgap);
+               }
                #endif
                if (( baseline_syncgap > (syncgap-2)  ) && (baseline_syncgap < (syncgap+2)  ) ) {
                 sync_ok_count++;
@@ -424,7 +432,10 @@ bool TimerHandler0(struct repeating_timer *t)
                     sync_ok_count=2;
                 }
                 #ifdef SYNCGAP_DEBUG
-                Serial.println("Sync is stable");
+                if (sync_gap_debug_cnt > 0 ) {
+                  --sync_gap_debug_cnt;
+                  Serial.println("Sync is stable");
+                }
                 #endif
                } else {
 
@@ -433,7 +444,8 @@ bool TimerHandler0(struct repeating_timer *t)
                  } else {
                     sync_status = 0;
                     #ifdef SYNCGAP_DEBUG
-                    Serial.println("Unable to maintain sync-gap - to to reset");
+                    sync_gap_debug_cnt=8;
+                    Serial.println("Unable to maintain sync-gap - do a reset");
                     #endif
                 }
                             

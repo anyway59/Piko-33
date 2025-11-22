@@ -12,7 +12,7 @@
 #define PPQN 24  // clocks per quarter note
 #define NOTE_DURATION (PPQN/6) // sixteenth note duration
 #define CLOCKPULSE 15 // was 15duration of clock out pulse
-// #define SYNCGAP_DEBUG 
+#define SYNCGAP_DEBUG 
 #define EXPECTED_INTERVAL_TICKS 11
 
 int16_t bpm = TEMPO;
@@ -36,9 +36,13 @@ bool clockin_received = 0;
 bool syncgap_newvalue = 0;
 byte sync_status = 0;
 byte sync_ok_count = 0;
-
+#ifdef SYNCGAP_DEBUG
+   byte sync_gap_debug_cnt = 8;
+#endif
 // table of 24 ppqn clock dividers for 4/4 time 1/32,1/16,1/8,1/4,1/2,1 bar,2 bars,4 bars
 int16_t divtable[] = {3,6,12,24,48,96,192,384};
+
+
 
 // all of the sequencers use the same data structure even though the data may be different in each case
 // this simplifies the code somewhat
@@ -56,30 +60,16 @@ struct sequencer {
   bool enabled; // true when playing
 };
 
+int16_t ref_index = DEFAULT_SEQ_STEPS-1; // reference index used for sync mechanism
+int16_t ref_clockticks = 24;     // 24 ppqn clock
+
 // notes are stored as offsets from the root 
 sequencer seq[NTRACKS] = {
   60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60, // initial notes - if sample is C3 pitch will be correct
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
   127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
   DEFAULT_SEQ_STEPS-1,   // step index
-  DEFAULT_DIVIDER,  // clock divider
-  24,       // 24 ppqn clock
-  true,   // track enabled
-
-
-  60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60, // initial notes - if sample is C3 pitch will be correct
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
-  127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
-  DEFAULT_SEQ_STEPS-1,   // step index
-  DEFAULT_DIVIDER,  // clock divider
-  24,       // 24 ppqn clock
-  true,   // track enabled
-
-   60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60, // initial notes - if sample is C3 pitch will be correct
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
-  127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
-  DEFAULT_SEQ_STEPS-1,   // step index
-  DEFAULT_DIVIDER,  // clock divider
+  DEFAULT_DIVIDER,  // clock divider    1/16
   24,       // 24 ppqn clock
   true,   // track enabled
 
@@ -87,7 +77,7 @@ sequencer seq[NTRACKS] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
   127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
   DEFAULT_SEQ_STEPS-1,   // step index
-  DEFAULT_DIVIDER,  // clock divider
+  DEFAULT_DIVIDER,  // clock divider    1/16
   24,       // 24 ppqn clock
   true,   // track enabled
 
@@ -95,7 +85,7 @@ sequencer seq[NTRACKS] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
   127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
   DEFAULT_SEQ_STEPS-1,   // step index
-  DEFAULT_DIVIDER,  // clock divider
+  3,  // clock divider    1/32
   24,       // 24 ppqn clock
   true,   // track enabled
 
@@ -103,7 +93,7 @@ sequencer seq[NTRACKS] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
   127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
   DEFAULT_SEQ_STEPS-1,   // step index
-  DEFAULT_DIVIDER,  // clock divider
+  12,  // clock divider   1/8
   24,       // 24 ppqn clock
   true,   // track enabled
 
@@ -111,7 +101,7 @@ sequencer seq[NTRACKS] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
   127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
   DEFAULT_SEQ_STEPS-1,   // step index
-  DEFAULT_DIVIDER,  // clock divider
+  24,  // clock divider   1/4
   24,       // 24 ppqn clock
   true,   // track enabled
 
@@ -119,7 +109,23 @@ sequencer seq[NTRACKS] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
   127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
   DEFAULT_SEQ_STEPS-1,   // step index
-  DEFAULT_DIVIDER,  // clock divider
+  48,  // clock divider   1/2
+  24,       // 24 ppqn clock
+  true,   // track enabled
+
+  60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60, // initial notes - if sample is C3 pitch will be correct
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
+  127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
+  DEFAULT_SEQ_STEPS-1,   // step index
+  48,  // clock divider   1/2
+  24,       // 24 ppqn clock
+  true,   // track enabled
+
+  60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60, // initial notes - if sample is C3 pitch will be correct
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
+  127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
+  DEFAULT_SEQ_STEPS-1,   // step index
+  96,  // clock divider   1 bar
   24,       // 24 ppqn clock
   true,   // track enabled
 };
@@ -135,11 +141,6 @@ void clocktick (long clockperiod) {
       seq[track].clockticks = seq[track].divider; // reset the clock counter
       ++seq[track].index;
       if ((seq[track].index) >= DEFAULT_SEQ_STEPS) seq[track].index=0; // restart the sequence 
-      if (track == 0 && seq[track].index == 0 ) {   // index has just gone to zero - start timer
-       if (!pulsetimer_running) {
-         pulsetimer_running=1;
-         pulsetimer = millis();
-         } }
       if (seq[track].enabled && (seq[track].velocity[seq[track].index] > 0)) { // velocity > 0 is a note on
         if (random(0,122) < seq[track].probability[seq[track].index]) { // probability threshold for 100% is a little lower - allows for a bit of slop in the pot
           voice[track].level=seq[track].velocity[seq[track].index]; // set the volume level
@@ -152,6 +153,18 @@ void clocktick (long clockperiod) {
       }
     }
   }
+  --ref_clockticks;
+  if (ref_clockticks <1) { // reference clock has counted down, do next step
+      ref_clockticks = DEFAULT_DIVIDER; // reset the clock counter
+      ++ref_index;
+      if ((ref_index) >= DEFAULT_SEQ_STEPS) ref_index=0; // restart the sequence 
+      if (ref_index == 0 ) {   // index has just gone to zero - start timer
+       if (!pulsetimer_running) {
+         pulsetimer_running=1;
+         pulsetimer = millis();
+         } 
+       } 
+  }
 }
 
 // sync all the sequencers by resetting their clocks
@@ -159,6 +172,7 @@ void sync_sequencers(void) {
   for (uint8_t track=0; track<NTRACKS;++track) { // 
     seq[track].clockticks = 1; // set the clock counter so it will roll over 
   }
+  ref_clockticks = 1;
 }
 // sync all the sequencers by resetting their clocks
 void sync_sequencers_and_indexes(void) {
@@ -166,10 +180,11 @@ void sync_sequencers_and_indexes(void) {
     seq[track].clockticks = 1; // set the clock counter so it will roll over 
     seq[track].index = DEFAULT_SEQ_STEPS;
   }
+  ref_index = DEFAULT_SEQ_STEPS;
 }
 
 uint16_t read_index(void) {
-   return seq[0].index;
+   return ref_index;
 }
 
 // must be called regularly for sequencer to run
@@ -186,13 +201,16 @@ void do_clocks(void) {
     clocktimer = millis();
     clocktick(clockperiod);
       #ifdef SYNCGAP_DEBUG
-        Serial.print("RPM = "); Serial.print(RPM);
-        Serial.print(",bpm = "); Serial.print(bpm);
-        Serial.print(",clockperiod = "); Serial.print(clockperiod);
-        Serial.print(",interval_click_count = "); Serial.println(interval_click_count);
+        if (sync_gap_debug_cnt > 0 ) {
+        //Serial.print("RPM = "); Serial.print(RPM);
+        //Serial.print(",bpm = "); Serial.print(bpm);
+        //Serial.print(",clockperiod = "); Serial.print(clockperiod);
+        //Serial.print(",interval_click_count = "); Serial.println(interval_click_count);
         if (syncgap_newvalue) {
           Serial.print("indexAtPulse = "); Serial.print(indexAtPulse);
           Serial.print(",Syncgap = "); Serial.println(syncgap);
+          syncgap_newvalue=0;
+        }
         }
       #endif
     interval_click_count=0;
