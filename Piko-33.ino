@@ -44,8 +44,8 @@
 
 // from pikocore for bpm calcs on clk input
 // this is unused, deprecate?
-#include "runningavg.h"
-RunningAverage ra;
+// #include "runningavg.h"
+// RunningAverage ra;
 volatile int clk_display;
 uint32_t clk_sync_last;
 
@@ -72,11 +72,14 @@ volatile int debounceCounter;
 volatile int clk_state_last; // track the CLOCKIN pin state.
 
 int clk_state = 0;
-int clk_hits = 0;
-uint32_t clk_sync_ms = 0;
+
+
 bool sync = false; // used to detect if we have input sync
 
-
+bool extsyncactive = false;
+#define EXTSYNCGIVEUPGAP 2000
+#define SYNCACTIVE_DEBUG
+uint32_t timelastextsync = 0;
 
 
 
@@ -395,6 +398,14 @@ bool TimerHandler0(struct repeating_timer *t)
     clk_display = RPM;
     // these are for the sequencer
     sync = true;
+    if (!extsyncactive) {
+     extsyncactive = true;
+     sync_status = 0;
+    #ifdef SYNCACTIVE_DEBUG    
+      Serial.println("extsyncactive switching to true");
+    #endif  
+    }
+    timelastextsync = millis();
     clockin_received=1;
     if (pulsetimer_running)
         {
@@ -520,6 +531,10 @@ bool TimerHandler0(struct repeating_timer *t)
     rotationTime++;
   }
   clk_state_last = digitalRead(SWPin);
+  
+  
+
+
   return true;
 }
 
@@ -630,13 +645,16 @@ void setup() {
   */
 
   // set up runningavg
-  ra.Init(5);
+  // ra.Init(5);
 
 
   for (int i=0; i< NUM_VOICES; ++i) { // silence all voices by setting sampleindex to last sample
     voice[i].sampleindex=sample[voice[i].sample].samplesize<<12; // sampleindex is a 20:12 fixed point number
   } 
   display_value(NUM_SAMPLES,DISPLAY_TIME,NOBLINKS); // show number of samples on the display
+
+  timelastextsync = millis();
+
 
 }
 
@@ -651,6 +669,7 @@ void loop() {
 
   // timer
   uint32_t now = millis();
+
 
 #ifdef MONITOR_MAIN_LOOP  
   digitalWrite(CPU_USE,1); // pulse every time thru the main loop
@@ -866,6 +885,13 @@ void loop() {
       else display_value(0, FASTBLINK_TIME,NOBLINKS);// LEDs off
       --blinkcount;
     }
+  }
+
+  if (extsyncactive && ((millis()-timelastextsync)>EXTSYNCGIVEUPGAP)) {
+    extsyncactive = false;
+    #ifdef SYNCACTIVE_DEBUG
+      Serial.println("extsyncactive switching to false");
+    #endif
   }
 
   // check if we have a new bpm value from interrupt

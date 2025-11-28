@@ -30,7 +30,7 @@ int16_t indexAtPulse = 0;
 bool update_baseline_syncgap = 1;
 byte num_consecutive_resets = 0;
 
-int16_t targetsync = 0;
+
 byte interval_click_count = 0;
 byte clockincounter = 99;
 bool pulsetimer_running = 0;
@@ -87,7 +87,7 @@ sequencer seq[NTRACKS] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
   127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
   DEFAULT_SEQ_STEPS-1,   // step index
-  3,  // clock divider    1/32
+  12,  // clock divider   1/8
   24,       // 24 ppqn clock
   true,   // track enabled
 
@@ -95,7 +95,7 @@ sequencer seq[NTRACKS] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
   127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
   DEFAULT_SEQ_STEPS-1,   // step index
-  12,  // clock divider   1/8
+  24,  // clock divider   1/4
   24,       // 24 ppqn clock
   true,   // track enabled
 
@@ -119,7 +119,7 @@ sequencer seq[NTRACKS] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
   127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
   DEFAULT_SEQ_STEPS-1,   // step index
-  48,  // clock divider   1/2
+  96,  // clock divider   1 bar
   24,       // 24 ppqn clock
   true,   // track enabled
 
@@ -127,7 +127,7 @@ sequencer seq[NTRACKS] = {
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // initial velocities
   127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127, // initial probabilities - 100%
   DEFAULT_SEQ_STEPS-1,   // step index
-  96,  // clock divider   1 bar
+  192,  // clock divider   2 bars
   24,       // 24 ppqn clock
   true,   // track enabled
 };
@@ -196,8 +196,6 @@ void do_clocks(void) {
 
   long clockperiod = (long)(((60.0 / (float)bpm) / PPQN) * 1000);   // 24 ticks per step
 
-
-
   if (clockin_received) {
     clockin_received=0;
     clocktimer = millis();
@@ -215,6 +213,7 @@ void do_clocks(void) {
         }
         }
       #endif
+    digitalWrite(CLOCKOUT, 1); // external clock high
     interval_click_count=0;
   } else { 
     if (( (millis() - clocktimer) ) > clockperiod) {
@@ -222,17 +221,10 @@ void do_clocks(void) {
          interval_click_count++;
           clocktimer = millis();
           clocktick(clockperiod);
-    //digitalWrite(CLOCKOUT, 1); // external clock high
-    // reset reset for interrupt
-    //reset = false;
-  
        }
     }
-
   }
-  
-
-  //if ((millis() - clocktimer) > CLOCKPULSE) digitalWrite(CLOCKOUT, 0); // external clock low
+  if ((millis() - clocktimer) > CLOCKPULSE) digitalWrite(CLOCKOUT, 0); // external clock low
 }
 
 
