@@ -78,7 +78,7 @@ bool sync = false; // used to detect if we have input sync
 
 bool extsyncactive = false;
 #define EXTSYNCGIVEUPGAP 2000
-#define SYNCACTIVE_DEBUG
+// #define SYNCACTIVE_DEBUG
 uint32_t timelastextsync = 0;
 
 
@@ -654,6 +654,7 @@ void setup() {
   display_value(NUM_SAMPLES,DISPLAY_TIME,NOBLINKS); // show number of samples on the display
 
   timelastextsync = millis();
+  extsyncactive = false;
 
 
 }
@@ -856,8 +857,11 @@ void loop() {
 
 
 // MIDI.read();  // do serial MIDI
-
-  do_clocks();  // process sequencer clocks
+  if (extsyncactive) {
+     do_clocks();  // process sequencer clocks
+  } else {
+     do_clocks_int();  // process sequencer clocks
+  }
   scanbuttons();
 
 // reading A/D seems to cause noise in the audio so don't do it too often
@@ -897,7 +901,8 @@ void loop() {
   // check if we have a new bpm value from interrupt
   // since debouncing is flaky, force more than 1 bpm diff
     //if (ra.Value() != bpm && ra.Value() > 49) {
-  if ((RPM  > bpm + 1 || RPM < bpm -1) && RPM > 49) {
+  if (extsyncactive) {
+    if ((RPM  > bpm + 1 || RPM < bpm -1) && RPM > 49) {
         //reset = true; //reset seq
         int16_t prev_bpm = bpm;
         bpm = RPM ;
@@ -907,10 +912,9 @@ void loop() {
         #ifdef SYNCGAP_DEBUG
           Serial.println("Change of tempo detected, update the update_baseline_syncgap");
         #endif
-
         update_baseline_syncgap=1;
+    }
   }
-
 }
 
 // second core setup

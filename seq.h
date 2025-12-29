@@ -226,5 +226,21 @@ void do_clocks(void) {
   }
   if ((millis() - clocktimer) > CLOCKPULSE) digitalWrite(CLOCKOUT, 0); // external clock low
 }
+void do_clocks_int(void) {
+
+  long clockperiod = (long)(((60.0 / (float)bpm) / PPQN) * 1000);   // 24 ticks per step
+  
+  if ( (millis() - clocktimer) > clockperiod ) {
+    clocktimer = millis();
+    clocktick(clockperiod);
+    interval_click_count++;
+    if (interval_click_count > EXPECTED_INTERVAL_TICKS) {
+      digitalWrite(CLOCKOUT, 1); // external clock high
+      interval_click_count=0;
+    }
+    
+  }
+  if ((millis() - clocktimer) > CLOCKPULSE) digitalWrite(CLOCKOUT, 0); // external clock low
+}
 
 
